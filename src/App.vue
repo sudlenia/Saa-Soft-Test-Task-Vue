@@ -1,13 +1,72 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { ref } from "vue";
+import { reactive } from "vue";
+
+type EntryType = {
+  text: "LDAP" | "Локальная";
+  value: "ldap" | "local";
+};
+
+type Tag = { text: string };
+
+type Account = {
+  id: number;
+  tags?: Tag[];
+  entryType: "ldap" | "local";
+  login: string;
+  password: string;
+};
+
+const entryTypes: EntryType[] = [
+  { text: "LDAP", value: "ldap" },
+  { text: "Локальная", value: "local" },
+];
+
+const accounts = reactive<Account[]>([
+  {
+    id: 0,
+    tags: [{ text: "XXXX" }, { text: "XXXX" }],
+    entryType: "local",
+    login: "123",
+    password: "123",
+  },
+]);
+const nextId = ref(1);
+
+const clues: string[] = [
+  "Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;",
+];
+
+function addAccount() {
+  accounts.push({
+    id: nextId.value,
+    tags: [],
+    entryType: "local",
+    login: "",
+    password: "",
+  });
+
+  nextId.value++;
+}
+
+const deleteAccount = (id: number) => {
+  accounts.splice(
+    accounts.findIndex((account) => account.id === id),
+    1
+  );
+};
+</script>
 
 <template>
   <div class="page">
     <header class="header">
       <h1 class="header__title">Учётные записи</h1>
-      <b-button class="header__btn" type="is-light">+</b-button>
+      <b-button class="header__btn" type="is-light" @click="addAccount"
+        >+</b-button
+      >
     </header>
     <div class="clues">
-      <article class="clue">
+      <article v-for="(clue, index) in clues" :key="index" class="clue">
         <svg
           width="32px"
           height="32px"
@@ -22,8 +81,7 @@
           />
         </svg>
         <p class="clue__text">
-          Для указания нескольких меток для одной пары логин/пароль используйте
-          разделитель ;
+          {{ clue }}
         </p>
       </article>
     </div>
@@ -34,25 +92,46 @@
         <p class="accounts__cell">Логин</p>
         <p class="accounts__cell">Пароль</p>
       </div>
-      <div class="account">
+      <div class="account" v-for="account in accounts">
         <b-field class="account__tags">
-          <b-input></b-input>
+          <b-input
+            :model-value="account.tags?.map((tag) => tag.text).join('; ')"
+            maxlength="50"
+          ></b-input>
         </b-field>
-        <b-field class="account__entryType" style="width: 150px">
-          <b-select>
-            <option>123</option>
+        <b-field class="account__entryType">
+          <b-select v-model="account.entryType">
+            <option
+              v-for="entryType in entryTypes"
+              :key="entryType.value"
+              :value="entryType.value"
+            >
+              {{ entryType.text }}
+            </option>
           </b-select>
         </b-field>
         <b-field class="account__login">
-          <b-input></b-input>
+          <b-input
+            :model-value="account.login"
+            maxlength="100"
+            required
+          ></b-input>
         </b-field>
         <b-field class="account__password">
-          <b-input type="password" model-value="" password-reveal> </b-input>
+          <b-input
+            type="password"
+            :model-value="account.password"
+            password-reveal
+            maxlength="100"
+            required
+          >
+          </b-input>
         </b-field>
         <b-button
           class="account__delete"
           type="is-danger"
           icon-right="delete"
+          @click="deleteAccount(account.id)"
         ></b-button>
       </div>
     </main>

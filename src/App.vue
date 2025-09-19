@@ -14,7 +14,7 @@ type Account = {
   tags?: Tag[];
   entryType: "ldap" | "local";
   login: string;
-  password: string;
+  password?: string | null;
 };
 
 const entryTypes: EntryType[] = [
@@ -27,7 +27,7 @@ const accounts = reactive<Account[]>([
     id: 0,
     tags: [{ text: "XXXX" }, { text: "XXXX" }],
     entryType: "local",
-    login: "123",
+    login: "321",
     password: "123",
   },
 ]);
@@ -36,6 +36,16 @@ const nextId = ref(1);
 const clues: string[] = [
   "Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;",
 ];
+
+function parseTags(tagsString: string): Tag[] {
+  if (!tagsString.trim()) return [];
+
+  return tagsString
+    .split(";")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0)
+    .map((tag) => ({ text: tag }));
+}
 
 function addAccount() {
   accounts.push({
@@ -54,6 +64,45 @@ const deleteAccount = (id: number) => {
     accounts.findIndex((account) => account.id === id),
     1
   );
+};
+
+const handleTagsBlur = (account: Account, event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const tagsString = input.value;
+  account.tags = parseTags(tagsString);
+};
+
+const handleLoginBlur = (account: Account, event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const loginString = input.value;
+
+  if (loginString.trim()) {
+    account.login = loginString;
+  }
+
+  console.log(accounts);
+};
+
+const handlePasswordBlur = (account: Account, event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const passwordString = input.value;
+
+  if (account.entryType === "local" && passwordString.trim()) {
+    account.password = passwordString;
+  }
+
+  console.log(accounts);
+};
+
+const handleEntryTypeChange = (account: Account, event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.value === "ldap") {
+    account.password = null;
+  } else {
+    account.password = null;
+  }
+
+  console.log(accounts);
 };
 </script>
 
@@ -92,15 +141,29 @@ const deleteAccount = (id: number) => {
         <p class="accounts__cell">Логин</p>
         <p class="accounts__cell">Пароль</p>
       </div>
-      <div class="account" v-for="account in accounts">
+      <div
+        class="account"
+        v-for="account in accounts"
+        :key="account.id"
+        :style="{
+          gridTemplateColumns:
+            account.entryType === 'ldap'
+              ? '250px 150px auto 40px'
+              : '250px 150px auto 250px 40px',
+        }"
+      >
         <b-field class="account__tags">
           <b-input
             :model-value="account.tags?.map((tag) => tag.text).join('; ')"
+            @blur="handleTagsBlur(account, $event)"
             maxlength="50"
           ></b-input>
         </b-field>
         <b-field class="account__entryType">
-          <b-select v-model="account.entryType">
+          <b-select
+            v-model="account.entryType"
+            @change="handleEntryTypeChange(account, $event)"
+          >
             <option
               v-for="entryType in entryTypes"
               :key="entryType.value"
@@ -113,14 +176,19 @@ const deleteAccount = (id: number) => {
         <b-field class="account__login">
           <b-input
             :model-value="account.login"
+            @blur="handleLoginBlur(account, $event)"
             maxlength="100"
             required
           ></b-input>
         </b-field>
-        <b-field class="account__password">
+        <b-field
+          class="account__password"
+          :style="{ display: account.entryType === 'ldap' ? 'none' : 'block' }"
+        >
           <b-input
             type="password"
             :model-value="account.password"
+            @blur="handlePasswordBlur(account, $event)"
             password-reveal
             maxlength="100"
             required

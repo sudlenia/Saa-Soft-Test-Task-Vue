@@ -1,109 +1,104 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { reactive } from "vue";
+import { useAccountsStore } from "./stores/accounts";
+import type { Account } from "./stores/accounts";
+import { useToast } from "buefy";
+
+const Toast = useToast();
 
 type EntryType = {
   text: "LDAP" | "Локальная";
   value: "ldap" | "local";
 };
 
-type Tag = { text: string };
-
-type Account = {
-  id: number;
-  tags?: Tag[];
-  entryType: "ldap" | "local";
-  login: string;
-  password?: string | null;
-};
+const accountsStore = useAccountsStore();
 
 const entryTypes: EntryType[] = [
   { text: "LDAP", value: "ldap" },
   { text: "Локальная", value: "local" },
 ];
 
-const accounts = reactive<Account[]>([
-  {
-    id: 0,
-    tags: [{ text: "XXXX" }, { text: "XXXX" }],
-    entryType: "local",
-    login: "321",
-    password: "123",
-  },
-]);
-const nextId = ref(1);
-
 const clues: string[] = [
   "Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;",
 ];
 
-function parseTags(tagsString: string): Tag[] {
-  if (!tagsString.trim()) return [];
-
-  return tagsString
-    .split(";")
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0)
-    .map((tag) => ({ text: tag }));
-}
-
 function addAccount() {
-  accounts.push({
-    id: nextId.value,
-    tags: [],
-    entryType: "local",
-    login: "",
-    password: "",
-  });
-
-  nextId.value++;
+  accountsStore.addAccount();
 }
 
-const deleteAccount = (id: number) => {
-  accounts.splice(
-    accounts.findIndex((account) => account.id === id),
-    1
-  );
-};
+function deleteAccount(id: number) {
+  accountsStore.deleteAccount(id);
+}
 
-const handleTagsBlur = (account: Account, event: Event) => {
+function handleTagsBlur(account: Account, event: Event) {
   const input = event.target as HTMLInputElement;
   const tagsString = input.value;
-  account.tags = parseTags(tagsString);
-};
+  const updatedAccount = {
+    ...account,
+    tags: accountsStore.parseTags(tagsString),
+  };
+  accountsStore.updateAccount(updatedAccount);
+  successToast();
+}
 
-const handleLoginBlur = (account: Account, event: Event) => {
+function handleLoginBlur(account: Account, event: Event) {
   const input = event.target as HTMLInputElement;
   const loginString = input.value;
 
   if (loginString.trim()) {
-    account.login = loginString;
+    const updatedAccount = {
+      ...account,
+      login: loginString,
+    };
+    accountsStore.updateAccount(updatedAccount);
+    successToast();
+  } else {
+    dangerToast();
   }
+}
 
-  console.log(accounts);
-};
-
-const handlePasswordBlur = (account: Account, event: Event) => {
+function handlePasswordBlur(account: Account, event: Event) {
   const input = event.target as HTMLInputElement;
   const passwordString = input.value;
 
   if (account.entryType === "local" && passwordString.trim()) {
-    account.password = passwordString;
-  }
-
-  console.log(accounts);
-};
-
-const handleEntryTypeChange = (account: Account, event: Event) => {
-  const input = event.target as HTMLInputElement;
-  if (input.value === "ldap") {
-    account.password = null;
+    const updatedAccount = {
+      ...account,
+      password: passwordString,
+    };
+    accountsStore.updateAccount(updatedAccount);
+    successToast();
   } else {
-    account.password = null;
+    dangerToast();
   }
+}
 
-  console.log(accounts);
-};
+function handleEntryTypeChange(account: Account, event: Event) {
+  const select = event.target as HTMLSelectElement;
+  const newEntryType = select.value as "ldap" | "local";
+
+  const updatedAccount = {
+    ...account,
+    entryType: newEntryType,
+    password: newEntryType === "ldap" ? null : account.password || "",
+  };
+
+  accountsStore.updateAccount(updatedAccount);
+  successToast();
+}
+
+function successToast() {
+  Toast.open({
+    message: "Данные успешно сохранены",
+    type: "is-success",
+  });
+}
+
+function dangerToast() {
+  Toast.open({
+    message: "Данные не сохранены",
+    type: "is-danger",
+  });
+}
 </script>
 
 <template>
@@ -143,7 +138,7 @@ const handleEntryTypeChange = (account: Account, event: Event) => {
       </div>
       <div
         class="account"
-        v-for="account in accounts"
+        v-for="account in accountsStore.accounts"
         :key="account.id"
         :style="{
           gridTemplateColumns:
